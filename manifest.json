@@ -1,0 +1,11 @@
+
+{
+  "name": "Laser Nesting Calculator",
+  "short_name": "Nesting Calc",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#333333",
+  "icons": []
+}
