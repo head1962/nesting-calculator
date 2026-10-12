@@ -1,0 +1,156 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laser Nesting Economics</title>
+<style>
+body{font:16px Arial;background:#f2f4f6;color:#222;margin:0;padding:24px}
+main{max-width:760px;margin:auto}
+section{background:white;padding:20px;margin:14px 0;border-radius:12px}
+h1{font-size:26px}h2{font-size:19px}
+.control{margin:22px 0}
+.line{display:flex;justify-content:space-between;gap:12px}
+input{width:100%;accent-color:#d71920}
+output{font-weight:bold}
+small{color:#666}
+.result{background:#f5f6f7;padding:15px;border-radius:8px;margin:10px 0}
+#net{font-size:30px;font-weight:bold}
+button{padding:10px 14px;border:1px solid #bbb;border-radius:7px;background:white;cursor:pointer}
+</style>
+</head>
+<body>
+<main>
+<h1>Laser Nesting Economics</h1>
+<p>Estimate whether improved laser nesting saves more money than angle-related scrap and rework costs.</p>
+
+<section>
+<h2>Material and yield</h2>
+<div class="control">
+<div class="line"><label>Annual sheet metal</label><output id="tonnesV"></output></div>
+<input id="tonnes" type="range" min="50" max="3000" step="50" value="500">
+</div>
+<div class="control">
+<div class="line"><label>Material price (CHF/kg)</label><output id="priceV"></output></div>
+<input id="price" type="range" min="0.5" max="5" step="0.1" value="1.5">
+</div>
+<div class="control">
+<div class="line"><label>Extra nesting yield</label><output id="yieldV"></output></div>
+<input id="yield" type="range" min="0" max="12" step="0.5" value="5">
+<small>Reduction in material purchased for the same output.</small>
+</div>
+</section>
+
+<section>
+<h2>Extra angle-related costs</h2>
+<div class="control">
+<div class="line"><label>Additional defective parts</label><output id="defectV"></output></div>
+<input id="defect" type="range" min="0" max="5" step="0.1" value="1">
+<small>Only defects caused by the new nesting approach.</small>
+</div>
+<div class="control">
+<div class="line"><label>Laser cutting cost (CHF/kg)</label><output id="laserV"></output></div>
+<input id="laser" type="range" min="0" max="2" step="0.1" value="0.5">
+</div>
+<div class="control">
+<div class="line"><label>Bending cost (CHF/kg)</label><output id="bendV"></output></div>
+<input id="bend" type="range" min="0" max="4" step="0.1" value="1">
+</div>
+<div class="control">
+<div class="line"><label>Share of affected parts reworked</label><output id="reworkV"></output></div>
+<input id="rework" type="range" min="0" max="100" step="5" value="50">
+<small>The remaining affected parts are assumed to be scrapped.</small>
+</div>
+</section>
+
+<section>
+<h2>Annual result</h2>
+<div class="result">Material saving: <strong id="saving"></strong></div>
+<div class="result">Scrap cost: <strong id="scrap"></strong></div>
+<div class="result">Additional rework cost: <strong id="reworkCost"></strong></div>
+<div class="result">Extra costs total: <strong id="costs"></strong></div>
+<div class="result">NET ANNUAL GAIN / LOSS
+<div id="net"></div></div>
+<p id="status"></p>
+<button onclick="resetValues()">Reset example values</button>
+<button onclick="exportCSV()">Export CSV</button>
+</section>
+
+<section>
+<h2>Calculation assumptions</h2>
+<small>
+Material saving = annual tonnes × 1,000 × material price × extra yield percentage.
+Scrap cost includes material, laser cutting and initial bending.
+Rework cost includes an additional bending-cost allowance.
+This is a simplified model. It excludes inspection, handling, downstream work and lost production capacity.
+</small>
+</section>
+</main>
+<script>
+const ids=["tonnes","price","yield","defect","laser","bend","rework"];
+const defaults={tonnes:500,price:1.5,yield:5,defect:1,laser:0.5,bend:1,rework:50};
+const v=id=>Number(document.getElementById(id).value);
+const el=id=>document.getElementById(id);
+const money=n=>"CHF "+Math.round(n).toLocaleString("en-CH");
+function calculate(){
+ const kg=v("tonnes")*1000;
+ const material=v("price"), yieldPct=v("yield")/100;
+ const affected=kg*v("defect")/100;
+ const reworked=affected*v("rework")/100;
+ const scrapped=affected-reworked;
+ const saving=kg*material*yieldPct;
+ const scrapCost=scrapped*(material+v("laser")+v("bend"));
+ const reworkCost=reworked*v("bend");
+ const costs=scrapCost+reworkCost;
+ const net=saving-costs;
+ el("tonnesV").textContent=v("tonnes")+" t/year";
+ el("priceV").textContent="CHF "+v("price").toFixed(2)+"/kg";
+ el("yieldV").textContent=v("yield").toFixed(1)+"%";
+ el("defectV").textContent=v("defect").toFixed(1)+"%";
+ el("laserV").textContent="CHF "+v("laser").toFixed(2)+"/kg";
+ el("bendV").textContent="CHF "+v("bend").toFixed(2)+"/kg";
+ el("reworkV").textContent=v("rework")+"%";
+ el("saving").textContent=money(saving);
+ el("scrap").textContent=money(scrapCost);
+ el("reworkCost").textContent=money(reworkCost);
+ el("costs").textContent=money(costs);
+ el("net").textContent=(net<0?"−":"+")+money(Math.abs(net));
+ el("net").style.color=net<0?"#b42318":"#187344";
+ el("status").textContent=net>=0?
+ "Positive business case under these assumptions.":
+ "Negative business case under these assumptions.";
+ el("status").style.color=net<0?"#b42318":"#187344";
+}
+function resetValues(){
+ for(const [id,val] of Object.entries(defaults))el(id).value=val;
+ calculate();
+}
+function exportCSV(){
+ const rows=[
+ ["Parameter","Value"],
+ ["Annual sheet metal (tonnes)",v("tonnes")],
+ ["Material price CHF/kg",v("price")],
+ ["Extra nesting yield (%)",v("yield")],
+ ["Additional defects (%)",v("defect")],
+ ["Laser cost CHF/kg",v("laser")],
+ ["Bending cost CHF/kg",v("bend")],
+ ["Affected parts reworked (%)",v("rework")],
+ ["Material saving",el("saving").textContent],
+ ["Scrap cost",el("scrap").textContent],
+ ["Rework cost",el("reworkCost").textContent],
+ ["Net annual gain/loss",el("net").textContent]
+ ];
+ const csv=rows.map(r=>r.map(x=>'"'+String(x).replaceAll('"','""')+'"').join(",")).join("\r\n");
+ const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="nesting_calculator.csv";
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+ids.forEach(id=>el(id).addEventListener("input",calculate));
+calculate();
+</script>
+</body>
+</html>
